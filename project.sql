@@ -46,8 +46,11 @@ CREATE OR REPLACE TRIGGER balance_update
 CREATE TABLE CREATIONS
 (
   _creation_id            NUMBER NOT NULL,
+
   creation_cost           FLOAT NOT NULL,
   promotion_creations     FLOAT NOT NULL,
+  
+  _theater_company_id     NUMBER NOT NULL,
 
   PRIMARY KEY (_creation_id),
   FOREIGN KEY (_theater_company_id) REFERENCES THEATER_COMPANY(_theater_company_id),
@@ -55,36 +58,66 @@ CREATE TABLE CREATIONS
   CONSTRAINT PROMO_CSTR CHECK(promotion_creations >= 0 AND promotion_creations <= 1) 
 );
 
+/***************************** REPRESENTATION **********************************/
+
 CREATE TABLE REPRESENTATION
 (
-  date_representation DATE NOT NULL,
-  normal_reference_rate FLOAT NOT NULL,
-  reduced_reference_rate FLOAT NOT NULL,
-  money_made FLOAT NOT NULL,
-  tickets_sold NUMBER,
-  _representation_id NUMBER NOT NULL,
+  _representation_id      NUMBER NOT NULL,
+
+  date_representation     DATE NOT NULL,
+  normal_reference_rate   FLOAT NOT NULL,
+  reduced_reference_rate  FLOAT NOT NULL,
+  money_made              FLOAT NOT NULL,
+  tickets_sold            NUMBER,
+  
+  _creation_id            NUMBER NOT NULL,
 
   PRIMARY KEY (_representation_id),
   FOREIGN KEY (_creation_id) REFERENCES CREATIONS(_creation_id)
 );
 
+CREATE OR REPLACE TRIGGER insertRepresentation
+    BEFORE INSERT OR UPDATE 
+    ON REPRESENTATION
+    FOR EACH ROW
+    DECLARE
+      existingRepresentation EXCEPTION;
+    BEGIN 
+        IF INSERTING THEN
+            UPDATE CHARGE
+            SET NUM_PROF = :NEW.NUM_PROF
+            WHERE NUM_PROF = :OLD.NUM_PROF;
+        ELSIF DELETING THEN
+            DELETE FROM CHARGE
+            WHERE NUM_PROF = :OLD.NUM_PROF;
+        END IF;
+    END;
+
+/***************************** GRANTS **********************************/
+
 CREATE TABLE GRANTS
 (
-  entity VARCHAR(64) NOT NULL,
-  amount FLOAT NOT NULL,
+  _grant_id     NUMBER NOT NULL,
+
+  entity        VARCHAR(64) NOT NULL,
+  amount        FLOAT NOT NULL,
   number_months NUMBER NOT NULL,
-  date_start DATE NOT NULL,
-  _grant_id NUMBER NOT NULL,
+  date_start    DATE NOT NULL,
 
   PRIMARY KEY (_grant_id)
 );
 
+/***************************** TICKETS **********************************/
+
 CREATE TABLE TICKETS
 (
-  price FLOAT NOT NULL,
-  promotion FLOAT NOT NULL,
-  buying_date DATE NOT NULL,
-  _ticket_id NUMBER NOT NULL,
+  _ticket_id          NUMBER NOT NULL,
+
+  price               FLOAT NOT NULL,
+  promotion           FLOAT NOT NULL,
+  buying_date         DATE NOT NULL,
+  
+  _representation_id  NUMBER NOT NULL,
 
   PRIMARY KEY (_ticket_id),
   FOREIGN KEY (_representation_id) REFERENCES REPRESENTATION(_representation_id)
@@ -92,29 +125,34 @@ CREATE TABLE TICKETS
 
 CREATE TABLE CUSTOMER
 (
-  age NUMBER NOT NULL,
-  mail VARCHAR(64) NOT NULL,
-  name_customer VARCHAR(64) NOT NULL,
-  job VARCHAR(64) NOT NULL,
-  _customer_id NUMBER NOT NULL,
+  _customer_id    NUMBER NOT NULL,
+
+  age             NUMBER NOT NULL,
+  mail            VARCHAR(64) NOT NULL,
+  name_customer   VARCHAR(64) NOT NULL,
+  job             VARCHAR(64) NOT NULL,
 
   PRIMARY KEY (_customer_id)
 );
 
 CREATE TABLE REDUCE_RATE
 (
-  age_reduce NUMBER NOT NULL,
-  job_reduce VARCHAR(64) NOT NULL,
-  percentage FLOAT NOT NULL,
-  starting_date DATE NOT NULL,
-  finish_date DATE NOT NULL,
-  completion_percentage FLOAT NOT NULL,
-  _reduce_id NUMBER NOT NULL,
-  _representation_id NUMBER NOT NULL,
+  _reduce_id              NUMBER NOT NULL,
+
+  age_reduce              NUMBER NOT NULL,
+  job_reduce              VARCHAR(64) NOT NULL,
+  percentage              FLOAT NOT NULL,
+  starting_date           DATE NOT NULL,
+  finish_date             DATE NOT NULL,
+  completion_percentage   FLOAT NOT NULL,
+
+  _representation_id      NUMBER NOT NULL,
 
   PRIMARY KEY (_reduce_id),
   FOREIGN KEY (_representation_id) REFERENCES REPRESENTATION(_representation_id)
 );
+
+/***************************** OTHER **********************************/
 
 CREATE TABLE DEBUG
 (
@@ -123,10 +161,13 @@ CREATE TABLE DEBUG
 
 CREATE TABLE ARCHIVE
 (
-  date_transaction DATE NOT NULL,
-  amount FLOAT NOT NULL,
-  type_transaction VARCHAR(16) NOT NULL,
-  _trans_id NUMBER NOT NULL,
+  _trans_id           NUMBER NOT NULL,
+
+  date_transaction    DATE NOT NULL,
+  amount              FLOAT NOT NULL,
+  type_transaction    VARCHAR(16) NOT NULL,
+
+  _theater_company_id NUMBER NOT NULL,
 
   PRIMARY KEY (_trans_id),
   FOREIGN KEY (_theater_company_id) REFERENCES THEATER_COMPANY(_theater_company_id)
@@ -135,8 +176,11 @@ CREATE TABLE ARCHIVE
 /**************************** CONNECTION BETWEEN ENTITIES ***********************************/
 CREATE TABLE IS_GIVEN 
 (
-  date_given    DATE NOT NULL,
-  amount_given  FLOAT NOT NULL,
+  date_given          DATE NOT NULL,
+  amount_given        FLOAT NOT NULL,
+
+  _theater_company_id NUMBER NOT NULL,
+  _grant_id           NUMBER NOT NULL,
 
   FOREIGN KEY (_grant_id) REFERENCES GRANTS(_grant_id),
   FOREIGN KEY (_theater_company_id) REFERENCES THEATER_COMPANY(_theater_company_id)
@@ -144,10 +188,13 @@ CREATE TABLE IS_GIVEN
 
 CREATE TABLE HOSTS 
 (
-  hosting_fee     FLOAT NOT NULL,
-  comedian_cost   FLOAT NOT NULL,
-  traveling_cost  FLOAT NOT NULL,
-  staging_cost    FLOAT NOT NULL,
+  hosting_fee         FLOAT NOT NULL,
+  comedian_cost       FLOAT NOT NULL,
+  traveling_cost      FLOAT NOT NULL,
+  staging_cost        FLOAT NOT NULL,
+
+  _theater_company_id NUMBER NOT NULL,
+  _representation_id  NUMBER NOT NULL,
 
   FOREIGN KEY (_representation_id) REFERENCES REPRESENTATION(_representation_id),
   FOREIGN KEY (_theater_company_id) REFERENCES THEATER_COMPANY(_theater_company_id)
@@ -155,7 +202,10 @@ CREATE TABLE HOSTS
 
 CREATE TABLE BUYS 
 (
-  buying_date DATE NOT NULL,
+  buying_date   DATE NOT NULL,
+
+  _customer_id  NUMBER NOT NULL,
+  _ticket_id    NUMBER NOT NULL,
 
   FOREIGN KEY (_customer_id) REFERENCES CUSTOMER(_customer_id),
   FOREIGN KEY (_ticket_id) REFERENCES TICKETS(_ticket_id)
