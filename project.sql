@@ -1,14 +1,14 @@
 -- Tables destructions
 
-drop table THEATER_COMPANY CASCADE CONSTRAINTS;
-drop table CREATIONS CASCADE CONSTRAINTS;
-drop table REPRESENTATION CASCADE CONSTRAINTS;
-drop table GRANTS CASCADE CONSTRAINTS;
-drop table TICKETS CASCADE CONSTRAINTS;
-drop table CUSTOMER CASCADE CONSTRAINTS;
-drop table REDUCE_RATE CASCADE CONSTRAINTS;
-drop table DEBUG CASCADE CONSTRAINTS;
-drop table ARCHIVE CASCADE CONSTRAINTS;
+drop table THEATER_COMPANY    CASCADE CONSTRAINTS;
+drop table CREATIONS          CASCADE CONSTRAINTS;
+drop table REPRESENTATION     CASCADE CONSTRAINTS;
+drop table GRANTS             CASCADE CONSTRAINTS;
+drop table TICKETS            CASCADE CONSTRAINTS;
+drop table CUSTOMER           CASCADE CONSTRAINTS;
+drop table REDUCE_RATE        CASCADE CONSTRAINTS;
+drop table DEBUG              CASCADE CONSTRAINTS;
+drop table ARCHIVE            CASCADE CONSTRAINTS;
 
 -- Edit date format
 
@@ -28,7 +28,7 @@ CREATE TABLE THEATER_COMPANY
   balance                 FLOAT NOT NULL
 
   PRIMARY KEY (_theater_company_id),
-  CONSTRAINT BUDGET_CSTR CHECK(budget >= 0), /* Exo 3-B-1-C */
+  CONSTRAINT BUDGET_CSTR CHECK(budget >= 0)
 );
 
 CREATE OR REPLACE TRIGGER balance_update
@@ -76,22 +76,18 @@ CREATE TABLE REPRESENTATION
   FOREIGN KEY (_creation_id) REFERENCES CREATIONS(_creation_id)
 );
 
-CREATE OR REPLACE TRIGGER insertRepresentation
-    BEFORE INSERT OR UPDATE 
-    ON REPRESENTATION
+CREATE OR REPLACE TRIGGER no_duplicates_representation
+    BEFORE INSERT OR UPDATE ON REPRESENTATION
     FOR EACH ROW
-    DECLARE
-      existingRepresentation EXCEPTION;
-    BEGIN 
-        IF INSERTING THEN
-            UPDATE CHARGE
-            SET NUM_PROF = :NEW.NUM_PROF
-            WHERE NUM_PROF = :OLD.NUM_PROF;
-        ELSIF DELETING THEN
-            DELETE FROM CHARGE
-            WHERE NUM_PROF = :OLD.NUM_PROF;
-        END IF;
-    END;
+    DECLARE no_duplicates_representation_exception EXCEPTION;
+    begin
+    /*Search if multiple representations at the same date for the same creation exist*/
+      IF COUNT(SELECT * FROM REPRESENTATION Re, CREATIONS Cr WHERE Re._creation_id = Cr._creation_id AND Re.date_representation = :NEW.date_representation) > 0
+        RAISE no_duplicates_representation_exception;
+      END IF;
+      EXCEPTION WHEN(no_duplicates_representation_exception) THEN
+        RAISE_APPLICATION_ERROR(-20001, 'No duplicates for representations are possible');
+    end;
 
 /***************************** GRANTS **********************************/
 
