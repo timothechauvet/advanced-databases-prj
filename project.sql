@@ -7,7 +7,7 @@ drop table GRANTS             CASCADE CONSTRAINTS;
 drop table TICKETS            CASCADE CONSTRAINTS;
 drop table CUSTOMER           CASCADE CONSTRAINTS;
 drop table REDUCE_RATE        CASCADE CONSTRAINTS;
-drop table DEBUGTABLE              CASCADE CONSTRAINTS;
+drop table DEBUGTABLE         CASCADE CONSTRAINTS;
 drop table ARCHIVE            CASCADE CONSTRAINTS;
 
 -- Edit date format
@@ -21,10 +21,10 @@ CREATE TABLE THEATER_COMPANY
   theater_company_id     NUMBER NOT NULL, /*ID*/
 
   hall_capacity           NUMBER NOT NULL,
-  name_company            VARCHAR(64) NOT NULL;
+  name_company            VARCHAR(64) NOT NULL,
   budget                  FLOAT NOT NULL,
   city                    VARCHAR(64) NOT NULL,
-  balance                 FLOAT NOT NULL
+  balance                 FLOAT NOT NULL,
 
   PRIMARY KEY (theater_company_id),
   CONSTRAINT BUDGET_CSTR CHECK(budget >= 0)
@@ -73,6 +73,23 @@ CREATE TABLE REPRESENTATION
   PRIMARY KEY (representation_id),
   FOREIGN KEY (creation_id) REFERENCES CREATIONS(creation_id)
 );
+
+/*List cities where a company plays between two dates*/
+CREATE OR REPLACE FUNCTION citiesPlayedTwoDates(date_beginning DATE, date_ending DATE, tmp_name VARCHAR(64))
+RETURN varchar
+IS city_return varchar;
+
+begin
+  SELECT t.city INTO city_return
+  FROM THEATER_COMPANY t, CREATIONS c, REPRESENTATION r
+  WHERE t.name_company = tmp_name 
+    AND t.theater_company_id = c.theater_company_id
+    AND c.creation_id = r.creation_id
+    AND date_beggining <= c.date_representation
+    AND c.date_representation <= date_ending;
+    
+  RETURN city_return;
+end;
 
 CREATE OR REPLACE TRIGGER no_duplicates_representation
     BEFORE INSERT OR UPDATE ON REPRESENTATION
@@ -248,3 +265,33 @@ CREATE TABLE BUYS
   FOREIGN KEY (customer_id) REFERENCES CUSTOMER(customer_id),
   FOREIGN KEY (ticket_id) REFERENCES TICKETS(ticket_id)
 );
+
+/************************ FILL DATA ****************************/
+-- Theater company
+INSERT INTO THEATER_COMPANY VALUES(1, 300, 'Wakanim', 32000, 'Ineretu', 50798);
+INSERT INTO THEATER_COMPANY VALUES(2, 57, 'Caldwell', 20046, 'Sutufo', 79164);
+INSERT INTO THEATER_COMPANY VALUES(3, 78, 'Vasquez', 22422, 'Wuhilre', 39315);
+INSERT INTO THEATER_COMPANY VALUES(4, 323, 'Underwood', 3272, 'Ficzuzem', 77914);
+INSERT INTO THEATER_COMPANY VALUES(5, 55, 'Morton', 1502, 'Loghene', 49319);
+INSERT INTO THEATER_COMPANY VALUES(6, 286, 'Miles', 19484, 'Hebauke', 52953);
+INSERT INTO THEATER_COMPANY VALUES(7, 494, 'Nelson', 19741, 'Ticosgeg', 94483);
+
+-- Creations
+INSERT INTO CREATIONS VALUES(1, 1000, 0, 6);
+INSERT INTO CREATIONS VALUES(2, 2813, 0.1, 5);
+INSERT INTO CREATIONS VALUES(3, 2863, 0, 3);
+INSERT INTO CREATIONS VALUES(4, 1551, 0.3, 6);
+INSERT INTO CREATIONS VALUES(5, 1143, 0, 2);
+INSERT INTO CREATIONS VALUES(6, 2543, 0, 3);
+INSERT INTO CREATIONS VALUES(7, 1074, 0.7, 5);
+
+-- Representation
+INSERT INTO REPRESENTATION VALUES(1, '01-01-2021', 15, 10, 0, 100, 1);
+INSERT INTO REPRESENTATION VALUES(2, '02-01-2021', 10, 8, 0, 27, 1);
+INSERT INTO REPRESENTATION VALUES(3, '04-01-2021', 20, 17, 0, 242, 6);
+INSERT INTO REPRESENTATION VALUES(4, '03-01-2021', 20, 6, 0, 348, 2);
+INSERT INTO REPRESENTATION VALUES(5, '06-01-2021', 25, 13, 0, 306, 3);
+INSERT INTO REPRESENTATION VALUES(6, '05-01-2021', 29, 11, 0, 205, 7);
+INSERT INTO REPRESENTATION VALUES(7, '04-01-2021', 21, 17, 0, 72, 3);
+INSERT INTO REPRESENTATION VALUES(8, '05-01-2021', 18, 10, 0, 147, 2);
+INSERT INTO REPRESENTATION VALUES(9, '01-01-2021', 6, 5, 0, 123, 2);

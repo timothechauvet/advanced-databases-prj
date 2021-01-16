@@ -7,7 +7,7 @@
 - [ ] Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)
 
 ## FUNCTIONS
-- [ ] Advance time
+- [x] Advance time
 - [ ] List cities where company plays during a time period
 - [ ] Compute reductions according to age
 - [ ] Remove comedian fees at the end of a representation + compute it
