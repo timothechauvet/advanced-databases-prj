@@ -65,13 +65,49 @@ for each row
         elsif deleting then   
             insert into theater_company values (:new.theater_company_id,:new.hall_capacity,:new.budget,:new.city,:new.balance);
 
-        elseif inserting then   
+        elseif updating then   
             insert into theater_company values (:new.theater_company_id,:new.hall_capacity,:new.budget,:new.city,:new.balance);
         endif;
     end;
 
 
 --Archive transaction when there is a movement
+create or replace trigger archive_transaction
+after 
 
 
 --Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)S
+create procedure compute_reduce_rate
+is
+reduction_p NUMBER;
+price NUMBER;
+reduce_rate NUMBER;
+
+begin
+    for curr_customer in (select * from customer) loop
+        if curr_customer.age in (select age_reduce from reduce_rate) then
+            reduction_p := (select precentage from reduce_rate 
+                            where curr_customer.age == age_reduce;)
+        
+        elsif curr_customer.job in (select job_reduce from reduce_rate) then
+            reduction_p := (select precentage from reduce_rate 
+                            where curr_customer.job == job_reduce;)
+
+        elsif curr_customer.customer_id in (select customer_id from buys, reduce_rate
+                                            where buying_date > reduce_rate.starting_date
+                                            AND buying_date < reduce_rate.finish_date) then
+            reduction_p := (select precentage from reduce_rate , buys
+                            where curr_customer.customer_id == buys.customer_id and buys.buying_date > reduce_rate.starting_date
+                            and buys.buying_date < reduce_rate.finish_date ;)
+
+        elsif curr_customer.customer_id in (select customer_id from buys, reduce_rate
+                                            where count(customer_id) < reduce_rate.completion_percentage) then
+            reduction_p := (select precentage from reduce_rate ,buys
+                            where curr_customer.customer_id == buys.customer_id and count(customer_id) < reduce_rate.completion_percentage);)
+
+      
+        price := (select price from buys 
+                    where customer_id== curr_customer.customer_id;)
+        reduce_rate := price * (1-reduction_p) ;
+    endloop;
+end;
