@@ -89,19 +89,6 @@ begin
   RETURN 'END';
 end;
 
-CREATE OR REPLACE TRIGGER no_duplicates_representation
-    BEFORE INSERT OR UPDATE ON REPRESENTATION
-    FOR EACH ROW
-    DECLARE no_duplicates_representation_exception EXCEPTION;
-    begin
-    /*Search if multiple representations at the same date for the same creation exist*/
-      IF COUNT(SELECT * FROM REPRESENTATION Re, CREATIONS Cr WHERE Re._creation_id = Cr._creation_id AND Re.date_representation = :NEW.date_representation) > 0
-        RAISE no_duplicates_representation_exception;
-      END IF;
-      EXCEPTION WHEN(no_duplicates_representation_exception) THEN
-        RAISE_APPLICATION_ERROR(-20001, 'No duplicates for representations are possible');
-    end;
-
 /***************************** GRANTS **********************************/
 
 CREATE TABLE GRANTS
@@ -117,20 +104,6 @@ CREATE TABLE GRANTS
 );
 
 /***************************** TICKETS **********************************/
-
-CREATE TABLE TICKETS
-(
-  ticket_id          NUMBER NOT NULL,
-
-  price               FLOAT NOT NULL,
-  promotion           FLOAT NOT NULL,
-  buying_date         DATE NOT NULL,
-  
-  representation_id  NUMBER NOT NULL,
-
-  PRIMARY KEY (ticket_id),
-  FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
-);
 
 CREATE TABLE CUSTOMER
 (
@@ -158,6 +131,22 @@ CREATE TABLE REDUCE_RATE
   representation_id      NUMBER NOT NULL,
 
   PRIMARY KEY (reduce_id),
+  FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
+);
+
+CREATE TABLE TICKETS
+(
+  ticket_id          NUMBER NOT NULL,
+
+  price               FLOAT NOT NULL,
+  promotion           FLOAT NOT NULL,
+  buying_date         DATE NOT NULL,
+  
+  representation_id  NUMBER NOT NULL,
+  customer_id         NUMBER NOT NULL,
+
+  PRIMARY KEY (ticket_id),
+  FOREIGN KEY (customer_id) REFERENCES CUSTOMER(customer_id),
   FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
 );
 
