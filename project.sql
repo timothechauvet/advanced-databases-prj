@@ -60,7 +60,6 @@ CREATE TABLE REPRESENTATION
   reduced_reference_rate  FLOAT NOT NULL,
   money_made              FLOAT NOT NULL,
   tickets_sold            NUMBER,
-  ticket_id		            NUMBER NOT NULL,
   city_representation     VARCHAR(64),
   theater_company_id      NUMBER NOT NULL, 
   
@@ -155,6 +154,7 @@ CREATE TABLE TICKETS
   representation_id  NUMBER NOT NULL,
 
   PRIMARY KEY (ticket_id),
+  FOREIGN KEY (customer_id) REFERENCES CUSTOMER(customer_id),
   FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
 );
 
@@ -187,24 +187,6 @@ CREATE TABLE REDUCE_RATE
   FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
 );
 
-<<<<<<< HEAD
-=======
-CREATE TABLE TICKETS
-(
-  ticket_id          NUMBER NOT NULL,
-
-  price               FLOAT NOT NULL,
-  promotion           FLOAT,
-  buying_date         DATE NOT NULL,
-  
-  representation_id  NUMBER NOT NULL,
-  customer_id         NUMBER NOT NULL,
-
-  PRIMARY KEY (ticket_id),
-  FOREIGN KEY (customer_id) REFERENCES CUSTOMER(customer_id),
-  FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
-);
-
 CREATE OR REPLACE TRIGGER reducedTicketsRates
   AFTER INSERT OR UPDATE ON TICKETS
   FOR EACH ROW
@@ -223,7 +205,6 @@ CREATE OR REPLACE TRIGGER reducedTicketsRates
     SET promo = rate;
   end;
 
->>>>>>> 2ae3bb901af7acedfb6ed7b02ee9c7c8bb2a82c6
 /***************************** OTHER **********************************/
 
 CREATE TABLE DEBUGTABLE
@@ -440,8 +421,288 @@ INSERT INTO TICKETS VALUES(28, 10, , '09-01-2021', 9, 7);
 INSERT INTO TICKETS VALUES(29, 20, , '09-01-2021', 26, 4);
 INSERT INTO TICKETS VALUES(30, 26, , '05-01-2021', 6, 8);
 
+/******************************* PROCEDURES *******************************************/
+--No two representation at same time from same company
+create or replace trigger not_two_same_representation_time
+before insert or update on representation
+
+for each row
+    declare
+        not_same_time exception;
+begin 
+    for rep in (select * from representation) loop 
+        refcomp := (select theater_company_id from creation, representation 
+                    where creation.creation_id =  rep.creation_id;) --get id of company
+        
+        for rep2 in (select * from representation) loop
+            refcomp2 := (select theater_company_id from creation, representation 
+                    where creation.creation_id =  rep2.creation_id;)
+            if rep.date == rep2.date AND refcomp == refcomp2 then 
+                raise not_same_time
+        endloop;
+    endloop;
+
+    when (not_same_time) then
+        raise_application_error (-2000, 'no representation from same company at same time');
+end;
+    
+--No two representation at same place from same company
+create or replace trigger  
+before insert or update on representation
+
+for each row
+    declare
+        not_same_place exception;
+begin 
+    for rep in (select * from representation) loop
+        refcomp := (select theater_company_id from creation, representation 
+                    where company.creation_id =  rep.creation_id;) --get id of company
+
+        refhost := (select theater_company_id from host, representation
+                            where rep.representation_id = host.representation_id;) --get id of host
+        
+        for rep2 in (select * from representation) loop
+            refcomp2 := (select theater_company_id from creation, representation 
+                    where creation.creation_id =  rep2.creation_id;)
+
+            refhost2 := (select theater_company_id from host, representation
+                        where rep2.representation_id = host.representation_id;) --get id of host
+
+            if refhost == refhost2 AND refcomp == refcomp2 then 
+                raise not_same_place
+        endloop;
+    endloop;
+
+    when (not_same_place) then
+        raise_application_error (-2001, 'no representation from same company at same place');
+end;
+
+--Balance is updated daily/with any change
+create or replace trigger update_balance
+before update, insert or delete on theater_company
+
+for each row
+    begin
+        if inserting then   
+            insert into theater_company values (:new.theater_company_id,:new.hall_capacity,:new.budget,:new.city,:new.balance);
+       
+        elsif deleting then   
+            insert into theater_company values (:new.theater_company_id,:new.hall_capacity,:new.budget,:new.city,:new.balance);
+
+        elseif updating then   
+            insert into theater_company values (:new.theater_company_id,:new.hall_capacity,:new.budget,:new.city,:new.balance);
+        endif;
+    end;
+
+
+--Archive transaction when there is a movement
+create procedure archive_transaction
+is
+curr_date DATE = getcurrdate();
+
+declare
+@ReportStartDate DATE= month(curr_date, -1), --it run each end of month
+@ReportEndDate DATE= month(curr_date)
+
+if @ReportEndDate=curr_date
+Begin
+    for curr_grant in (select * from grant) loop
+        if curr_grant.date_start < curr_date AND curr_grant.date_end > curr_date then
+            insert into archive values ((SELECT max(trans_id) FROM archive)+1,curr_date,curr_grant.amount,"automatic transfer from "+ entity)  ;
+
+        endif;
+    endloop;
+end;
+   
+
+--Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)
+create procedure compute_reduce_rate
+is
+reduction_p NUMBER;
+price NUMBER;
+reduce_rate NUMBER;
+
+begin
+    for curr_customer in (select * from customer) loop
+        if curr_customer.age in (select age_reduce from reduce_rate) then
+            reduction_p := (select precentage from reduce_rate 
+                            where curr_customer.age == age_reduce;)
+        
+        elsif curr_customer.job in (select job_reduce from reduce_rate) then
+            reduction_p := (select precentage from reduce_rate 
+                            where curr_customer.job == job_reduce;)
+
+        elsif curr_customer.customer_id in (select customer_id from buys, reduce_rate
+                                            where buying_date > reduce_rate.starting_date
+                                            AND buying_date < reduce_rate.finish_date) then
+            reduction_p := (select precentage from reduce_rate , buys
+                            where curr_customer.customer_id == buys.customer_id and buys.buying_date > reduce_rate.starting_date
+                            and buys.buying_date < reduce_rate.finish_date ;)
+
+        elsif curr_customer.customer_id in (select customer_id from buys, reduce_rate
+                                            where count(customer_id) < reduce_rate.completion_percentage) then
+            reduction_p := (select precentage from reduce_rate ,buys
+                            where curr_customer.customer_id == buys.customer_id and count(customer_id) < reduce_rate.completion_percentage);)
+
+      
+        price := (select price from buys 
+                    where customer_id== curr_customer.customer_id;)
+        reduce_rate := price * (1-reduction_p) ;
+    endloop;
+end;
+
 /******************************** SQL QUERIES ************************************/
 -- List the cities where a company played during a time period
 begin
   dbms_output.put_line(citiesplayedtwodates('01-01-2021', '03-01-2021', 'Vasquez'));
+end;
+
+-- Prévoir quand la companie sera dans le rouge
+-- Prévoir quand la companie sera dans le rouge longtemps
+
+-- Prévoir les revenus d'une représentationbasés sur la capacity 
+create or replace function earning_capacity (rep IN NUMBER)--representation id
+RETURN NUMBER
+IS
+    hall_cap NUMBER;
+    tick_price NUMBER;
+    begin 
+    
+        select hall_capacity into hall_cap
+        from theater_company , representation 
+        where representation_id = rep and representation.theater_company_id =theater_company.theater_company_id;
+        
+        select price into tick_price
+        from tickets, representation 
+        where representation_id = rep and tickets.ticket_id = representation.ticket_id;
+        
+        return (hall_cap*tick_price);
+    end;
+
+-- Déterminer si le coût sera amorti avec les potentielles recettes
+create or replace function amortization (cre IN NUMBER) --creation id
+RETURN varchar
+IS
+    rep NUMBER;
+    factor NUMBER;
+    earning NUMBER := earning_capacity(rep);
+
+    begin   
+        select representation_id into rep 
+        from representation ,creations
+        where cre.creation_id = representation.creation_id;
+
+        select count(*) into factor
+        from representation where representation_id = rep.representation_id 
+        group by representation_id;
+        
+        if (earning *factor < 0) then
+            return  'no amortization';
+        else 
+            return 'amortization';
+        end if;
+    end;
+
+
+-- Effective cost : Costs/Ticketing
+create or replace function effective_cost (rep IN NUMBER)--representation id
+RETURN NUMBER
+IS
+    cre_cost NUMBER;
+    tick_price NUMBER;
+begin 
+    select creation_cost INTO cre_cost
+    from creations, representation 
+    where rep.representation_id = representation.representation_id and creations.creation_id = representation.creation_id;
+    
+    select price INTO tick_price
+    from tickets, representation 
+    where representation_id = rep and tickets.ticket_id = representation.ticket_id;
+    
+    select count(*) into tick_nbr
+    from representation,tickets where representation_id = rep and tickets.ticket_id = representation.ticket_id;
+                
+    Return cre_cost/(tick_price * rep.tickets_sold);
+end;
+
+-- Déterminer les companies qui jouent jamais dans des théâtres
+select theater_company_id from theater_company --select all row from theater_company
+left join representation on representation.theater_company_id = theater_company.theater_company_id --find row in representation with same company id, otherwise have null
+where representation.theater_company_id is NULL; --pick only result where id in representation is  null
+
+-- Quelles companies font systématiquement leur first show dehors/en intérieur
+Createor replace procedure first_show
+begin 
+    dbms_output.put_line ("theatre id | in their theatre or outside");
+    for theatre in (select * from theater_company) loop
+        if theatre in (select theater_company_id from theater_company left join representation on representation.theater_company_id = theater_company.theater_company_id)
+            dbms_output.put_line (theatre.theater_company_id '|  inside' );
+
+        else
+            dbms_output.put_line (theatre.theater_company_id '|  outside' );
+        end if;
+    end loop;
+end;
+
+-- Calculer le prix moyen des tickets vendus par companie
+Create or replace procedure average_ticket_price
+is
+average NUMBER;
+
+begin 
+    dbms_output.put_line ('theatre id | average ticket price');
+    for  theatre in (select * from theater_company) loop
+        select avg(price) into average
+        from tickets,representation  
+        where theatre.theater_company_id = representation.representation_id and representation.ticket_id = tickets.ticket_id;
+
+        dbms_output.put_line(theatre '|' average);
+    end loop;
+end;
+
+
+-- Quels sont les show les plus populaires (en fonction d'une période de temps) 
+--en fonction de # représentations
+create or replace function most_popular_representation(startDate DATE, endDate DATE)
+RETURN NUMBER
+IS
+begin
+    SELECT representation_id most_popular from representation
+    where representation.date > startDate AND representation.date < endDate
+    group by representation_id order by count(representation_id) DESC
+    limit 1;
+
+    return most_popular;
+end;
+
+-- Quels sont les show les plus populaires (en fonction d'une période de temps) 
+--en fonction de # potential viewers
+create or replace function most_popular_viewers(startDate DATE, endDate DATE)
+RETURN NUMBER
+IS
+begin
+    SELECT representation_id most_popular from representation, theater_company
+    where representation.date > startDate AND representation.date < endDate
+    AND representation.theater_company_id = theater_company.theater_company_id
+    Group by representation_id order by sum(hall_capacity) DESC
+    limit 1;
+
+    return most_popular;
+end;
+
+
+-- Quels sont les show les plus populaires (en fonction d'une période de temps) 
+--en fonction de # seats sold
+
+create or replace function most_popular_ticket(startDate DATE, endDate DATE)
+RETURN NUMBER
+IS
+begin
+    SELECT representation_id most_popular from representation,tickets
+    where representation.date > startDate AND representation.date < endDate 
+    AND ticket.representation_id = representation.representation_id
+    group by representation_id order by count(tickets.representation_id) DESC
+    limit 1;
+
+    return most_popular;
 end;
