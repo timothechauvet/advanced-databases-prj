@@ -1,3 +1,4 @@
+-- A link to out Github project : https://github.com/timothechauvet/advanced-databases-prj 
 -- Tables destructions
 
 drop table THEATER_COMPANY    CASCADE CONSTRAINTS;
@@ -75,7 +76,6 @@ CREATE TABLE REPRESENTATION
 CREATE OR REPLACE FUNCTION citiesPlayedTwoDates(date_beginning DATE, date_ending DATE, tmp_name VARCHAR)
 RETURN varchar
 IS done_return varchar(64);
-
 begin
   dbms_output.put_line('- Cities where '||tmp_name||' company played between '||TO_CHAR(date_beginning)||' and '||TO_CHAR(date_ending)||' -');
   FOR CITYNAME IN (
@@ -116,9 +116,31 @@ CREATE TABLE GRANTS
   amount        FLOAT NOT NULL,
   number_months NUMBER NOT NULL,
   date_start    DATE NOT NULL,
+  amount_given  FLOAT NOT NULL,
 
-  PRIMARY KEY (grant_id)
+  theater_company_id NUMBER NOT NULL,
+
+  PRIMARY KEY (grant_id),
+  FOREIGN KEY (theater_company_id) REFERENCES THEATER_COMPANY(theater_company_id)
 );
+
+CREATE OR REPLACE FUNCTION giveGrant(currDate DATE)
+RETURN varchar
+IS done_grant varchar(64);
+begin
+  FOR CURRGRANT IN (SELECT * FROM GRANTS) loop
+    -- If we reached the next mensuality of the grant, we move the next mensuality 
+    IF CURRGRANT.number_months > 0 AND CURRGRANT.date_start = currDate THEN 
+        CURRGRANT.date_start := ADD_MONTHS(currDate, 1);
+
+        -- Update the balance of the theater company
+        update THEATER_COMPANY
+           set balance=balance + CURRGRANT.amount_given
+         where CURRGRANT.theater_company_id = theater_company_id;
+    END IF;
+  end loop;
+  RETURN 'END';
+end;
 
 /***************************** TICKETS **********************************/
 
@@ -165,6 +187,43 @@ CREATE TABLE REDUCE_RATE
   FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
 );
 
+<<<<<<< HEAD
+=======
+CREATE TABLE TICKETS
+(
+  ticket_id          NUMBER NOT NULL,
+
+  price               FLOAT NOT NULL,
+  promotion           FLOAT,
+  buying_date         DATE NOT NULL,
+  
+  representation_id  NUMBER NOT NULL,
+  customer_id         NUMBER NOT NULL,
+
+  PRIMARY KEY (ticket_id),
+  FOREIGN KEY (customer_id) REFERENCES CUSTOMER(customer_id),
+  FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
+);
+
+CREATE OR REPLACE TRIGGER reducedTicketsRates
+  AFTER INSERT OR UPDATE ON TICKETS
+  FOR EACH ROW
+  DECLARE
+    rate FLOAT;
+  begin
+    SELECT percentage INTO rate
+    FROM REDUCE_RATE r
+    WHERE :NEW.representation_id = r.representation_id;
+
+    UPDATE (SELECT :NEW.promotion promo
+            FROM REDUCE_RATE r, CUSTOMER c
+            WHERE c.customer_id = :NEW.customer_id
+              AND c.age <= r.age_reduce
+              AND r.representation_id = :NEW.representation_id)
+    SET promo = rate;
+  end;
+
+>>>>>>> 2ae3bb901af7acedfb6ed7b02ee9c7c8bb2a82c6
 /***************************** OTHER **********************************/
 
 CREATE TABLE DEBUGTABLE
@@ -199,6 +258,9 @@ CREATE OR REPLACE TRIGGER timeTrigger
   begin
   IF :OLD.curr_date > :NEW.curr_date THEN
     RAISE timeFctPreviousDate;
+    -- Call all functions that rely on the current time
+  ELSE
+    giveGrant(:NEW.curr_date);
   END IF;
     EXCEPTION WHEN timeFctPreviousDate THEN
     RAISE_APPLICATION_ERROR(-20002, 'The new date cannot be before the older one');
@@ -231,18 +293,6 @@ CREATE TABLE ARCHIVE
 );
 
 /**************************** CONNECTION BETWEEN ENTITIES ***********************************/
-CREATE TABLE IS_GIVEN 
-(
-  date_given          DATE NOT NULL,
-  amount_given        FLOAT NOT NULL,
-
-  theater_company_id NUMBER NOT NULL,
-  grant_id           NUMBER NOT NULL,
-
-  FOREIGN KEY (grant_id) REFERENCES GRANTS(grant_id),
-  FOREIGN KEY (theater_company_id) REFERENCES THEATER_COMPANY(theater_company_id)
-);
-
 CREATE TABLE HOSTS 
 (
   hosting_fee         FLOAT NOT NULL,
@@ -319,6 +369,76 @@ INSERT INTO REPRESENTATION VALUES(25, '04-01-2021', 21, 17, 0, 112, 'Semobe', 4)
 INSERT INTO REPRESENTATION VALUES(26, '05-01-2021', 18, 10, 0, 172, 'Fufosfit', 3);
 INSERT INTO REPRESENTATION VALUES(27, '01-01-2021',  6,  5, 0, 126, 'Potrebi', 6);
 
+-- Customer
+                         --(id, age, mail, name, job)
+INSERT INTO CUSTOMER VALUES( 1, 66, 'tizol@zo.cv', 'Andre Chambers', 'retired');
+INSERT INTO CUSTOMER VALUES( 2,  9, 'fo@mib.ht', 'Loretta Black', 'kid');
+INSERT INTO CUSTOMER VALUES( 3, 12, 'hot@raukdew.at', 'Rebecca Spencer', 'kid');
+INSERT INTO CUSTOMER VALUES( 4, 36, 'fiditefir@ruoticu.va', 'Glen Allen', 'manager');
+INSERT INTO CUSTOMER VALUES( 5, 59, 'netijof@ec.tg', 'Arthur McCormick', 'programmer');
+INSERT INTO CUSTOMER VALUES( 6, 61, 'conidzur@lufupe.sy', 'Cameron Estrada', 'manager');
+INSERT INTO CUSTOMER VALUES( 7, 19, 'goksu@hi.cz', 'Bruce Stevenson', 'student');
+INSERT INTO CUSTOMER VALUES( 8, 22, 'we@cowope.lv', 'Rebecca Nash', 'student');
+INSERT INTO CUSTOMER VALUES( 9, 17, 'setuzawi@ga.su', 'Mittie Hale', 'student');
+INSERT INTO CUSTOMER VALUES(10, 56, 'imoumomug@nor.ws', 'Devin Dawson', 'manager');
+
+
+-- Reduce rate
+--(id, age, job, %, start, end, completion, FK representation_id)
+INSERT INTO REDUCE_RATE VALUES( 1, 21, 'unemployed', 0.6, '01-01-2021', '04-01-2021', 0.4, 3);
+INSERT INTO REDUCE_RATE VALUES( 2, 15, 'unemployed', 0.8, '03-01-2021', '04-01-2021', 0.5, 2);
+INSERT INTO REDUCE_RATE VALUES( 3, 11, 'retired', 0.5, '01-01-2021', '01-01-2021', 0.6, 3);
+INSERT INTO REDUCE_RATE VALUES( 4, 11, 'student', 0.4, '02-01-2021', '02-01-2021', 0.2, 5);
+INSERT INTO REDUCE_RATE VALUES( 5, 25, 'student', 0.5, '01-01-2021', '01-01-2021', 0.1, 5);
+INSERT INTO REDUCE_RATE VALUES( 6, 24, 'unemployed', 0.7, '01-01-2021', '05-01-2021', 0.5, 4);
+INSERT INTO REDUCE_RATE VALUES( 7, 23, 'student', 0.7, '02-01-2021', '05-01-2021', 0.2, 5);
+INSERT INTO REDUCE_RATE VALUES( 8, 16, 'unemployed', 0.6, '01-01-2021', '01-01-2021', 0.2, 3);
+INSERT INTO REDUCE_RATE VALUES( 9, 20, 'retired', 0.3, '03-01-2021', '04-01-2021', 0.2, 5);
+INSERT INTO REDUCE_RATE VALUES(10, 12, 'retired', 0.8, '02-01-2021', '03-01-2021', 0.6, 5);
+INSERT INTO REDUCE_RATE VALUES(11, 23, 'student', 0.1, '03-01-2021', '03-01-2021', 0.1, 4);
+INSERT INTO REDUCE_RATE VALUES(12, 25, 'student', 0.8, '02-01-2021', '03-01-2021', 0.5, 5);
+INSERT INTO REDUCE_RATE VALUES(13, 10, 'unemployed', 0.6, '01-01-2021', '02-01-2021', 0.6, 2);
+INSERT INTO REDUCE_RATE VALUES(14, 24, 'unemployed', 0.8, '02-01-2021', '04-01-2021', 0.6, 2);
+INSERT INTO REDUCE_RATE VALUES(15, 25, 'retired', 0.9, '02-01-2021', '01-01-2021', 0.5, 3);
+INSERT INTO REDUCE_RATE VALUES(16, 11, 'retired', 0.8, '01-01-2021', '01-01-2021', 0.4, 2);
+INSERT INTO REDUCE_RATE VALUES(17, 14, 'kid', 0.1, '03-01-2021', '03-01-2021', 0.6, 2);
+INSERT INTO REDUCE_RATE VALUES(18, 19, 'retired', 0.9, '03-01-2021', '05-01-2021', 0.4, 4);
+INSERT INTO REDUCE_RATE VALUES(19, 22, 'retired', 0.9, '02-01-2021', '02-01-2021', 0.3, 2);
+INSERT INTO REDUCE_RATE VALUES(20, 10, 'student', 0.1, '03-01-2021', '03-01-2021', 0.5, 4);
+INSERT INTO REDUCE_RATE VALUES(21, 10, 'kid', 0.6, '01-01-2021', '02-01-2021', 0.2, 3);
+
+-- Tickets
+--(id, price, promo, date, FK representation_id, FK customer_id)
+INSERT INTO TICKETS VALUES( 1, 13, , '09-01-2021', 6, 10);
+INSERT INTO TICKETS VALUES( 2, 28, , '05-01-2021', 22, 8);
+INSERT INTO TICKETS VALUES( 3, 20, , '05-01-2021', 18, 9);
+INSERT INTO TICKETS VALUES( 4, 24, , '04-01-2021', 5, 7);
+INSERT INTO TICKETS VALUES( 5, 30, , '01-01-2021', 14, 9);
+INSERT INTO TICKETS VALUES( 6, 12, , '09-01-2021', 5, 1);
+INSERT INTO TICKETS VALUES( 7, 24, , '03-01-2021', 5, 6);
+INSERT INTO TICKETS VALUES( 8, 23, , '04-01-2021', 12, 2);
+INSERT INTO TICKETS VALUES( 9, 25, , '02-01-2021', 18, 10);
+INSERT INTO TICKETS VALUES(10, 20, , '03-01-2021', 8, 1);
+INSERT INTO TICKETS VALUES(11, 28, , '01-01-2021', 14, 6);
+INSERT INTO TICKETS VALUES(12, 10, , '08-01-2021', 11, 2);
+INSERT INTO TICKETS VALUES(13, 13, , '02-01-2021', 20, 8);
+INSERT INTO TICKETS VALUES(14, 26, , '01-01-2021', 10, 7);
+INSERT INTO TICKETS VALUES(15, 24, , '09-01-2021', 10, 6);
+INSERT INTO TICKETS VALUES(16, 21, , '07-01-2021', 23, 1);
+INSERT INTO TICKETS VALUES(17, 30, , '03-01-2021', 15, 3);
+INSERT INTO TICKETS VALUES(18, 14, , '05-01-2021', 1, 6);
+INSERT INTO TICKETS VALUES(19, 14, , '09-01-2021', 4, 4);
+INSERT INTO TICKETS VALUES(20, 14, , '02-01-2021', 26, 2);
+INSERT INTO TICKETS VALUES(21, 15, , '06-01-2021', 20, 3);
+INSERT INTO TICKETS VALUES(22, 19, , '09-01-2021', 20, 1);
+INSERT INTO TICKETS VALUES(23, 27, , '09-01-2021', 26, 4);
+INSERT INTO TICKETS VALUES(24, 30, , '03-01-2021', 21, 4);
+INSERT INTO TICKETS VALUES(25, 24, , '02-01-2021', 5, 10);
+INSERT INTO TICKETS VALUES(26, 28, , '01-01-2021', 15, 6);
+INSERT INTO TICKETS VALUES(27, 27, , '08-01-2021', 11, 5);
+INSERT INTO TICKETS VALUES(28, 10, , '09-01-2021', 9, 7);
+INSERT INTO TICKETS VALUES(29, 20, , '09-01-2021', 26, 4);
+INSERT INTO TICKETS VALUES(30, 26, , '05-01-2021', 6, 8);
 
 /******************************** SQL QUERIES ************************************/
 -- List the cities where a company played during a time period
