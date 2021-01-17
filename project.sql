@@ -224,6 +224,9 @@ CREATE OR REPLACE TRIGGER timeTrigger
   begin
   IF :OLD.curr_date > :NEW.curr_date THEN
     RAISE timeFctPreviousDate;
+    -- Call all functions that rely on the current time
+  ELSE
+    giveGrant(:NEW.curr_date);
   END IF;
     EXCEPTION WHEN timeFctPreviousDate THEN
     RAISE_APPLICATION_ERROR(-20002, 'The new date cannot be before the older one');
