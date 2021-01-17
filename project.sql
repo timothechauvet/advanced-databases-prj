@@ -72,7 +72,6 @@ CREATE TABLE REPRESENTATION
 CREATE OR REPLACE FUNCTION citiesPlayedTwoDates(date_beginning DATE, date_ending DATE, tmp_name VARCHAR)
 RETURN varchar
 IS done_return varchar(64);
-
 begin
   dbms_output.put_line('- Cities where '||tmp_name||' company played between '||TO_CHAR(date_beginning)||' and '||TO_CHAR(date_ending)||' -');
   FOR CITYNAME IN (
@@ -100,9 +99,31 @@ CREATE TABLE GRANTS
   amount        FLOAT NOT NULL,
   number_months NUMBER NOT NULL,
   date_start    DATE NOT NULL,
+  amount_given  FLOAT NOT NULL,
 
-  PRIMARY KEY (grant_id)
+  theater_company_id NUMBER NOT NULL,
+
+  PRIMARY KEY (grant_id),
+  FOREIGN KEY (theater_company_id) REFERENCES THEATER_COMPANY(theater_company_id)
 );
+
+CREATE OR REPLACE FUNCTION giveGrant(currDate DATE)
+RETURN varchar
+IS done_grant varchar(64);
+begin
+  FOR CURRGRANT IN (SELECT * FROM GRANTS) loop
+    -- If we reached the next mensuality of the grant, we move the next mensuality 
+    IF CURRGRANT.number_months > 0 AND CURRGRANT.date_start = currDate THEN 
+        CURRGRANT.date_start := ADD_MONTHS(currDate, 1);
+
+        -- Update the balance of the theater company
+        update THEATER_COMPANY
+           set balance=balance + CURRGRANT.amount_given
+         where CURRGRANT.theater_company_id = theater_company_id;
+    END IF;
+  end loop;
+  RETURN 'END';
+end;
 
 /***************************** TICKETS **********************************/
 
@@ -151,7 +172,7 @@ CREATE TABLE TICKETS
   FOREIGN KEY (representation_id) REFERENCES REPRESENTATION(representation_id)
 );
 
-CREATE OR REPLACE TRIGGER reducedTicketsRates2
+CREATE OR REPLACE TRIGGER reducedTicketsRates
   AFTER INSERT OR UPDATE ON TICKETS
   FOR EACH ROW
   DECLARE
@@ -235,18 +256,6 @@ CREATE TABLE ARCHIVE
 );
 
 /**************************** CONNECTION BETWEEN ENTITIES ***********************************/
-CREATE TABLE IS_GIVEN 
-(
-  date_given          DATE NOT NULL,
-  amount_given        FLOAT NOT NULL,
-
-  theater_company_id NUMBER NOT NULL,
-  grant_id           NUMBER NOT NULL,
-
-  FOREIGN KEY (grant_id) REFERENCES GRANTS(grant_id),
-  FOREIGN KEY (theater_company_id) REFERENCES THEATER_COMPANY(theater_company_id)
-);
-
 CREATE TABLE HOSTS 
 (
   hosting_fee         FLOAT NOT NULL,

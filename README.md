@@ -13,7 +13,7 @@
 - [ ] Remove comedian fees at the end of a representation + compute it
 - [ ] The staging costs are paid at the first evening of the show. Especially if a show is given several evenings, payment is made once the first night
 - [ ] When a production is presented in another theater, travel costs are paid on the day of the arrival of the company in the theater
-- [ ] Pay the theater hosting with a fixed rate
+- [x] Pay the theater hosting with a fixed rate
 
 ## REQUÊTES SQL
 - [ ] Prévoir quand la companie sera dans le rouge
