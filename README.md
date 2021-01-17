@@ -8,7 +8,7 @@
 
 ## FUNCTIONS
 - [x] Advance time
-- [ ] List cities where company plays during a time period
+- [x] List cities where company plays during a time period
 - [ ] Compute reductions according to age
 - [ ] Remove comedian fees at the end of a representation + compute it
 - [ ] The staging costs are paid at the first evening of the show. Especially if a show is given several evenings, payment is made once the first night

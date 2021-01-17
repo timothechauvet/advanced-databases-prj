@@ -10,8 +10,9 @@ drop table REDUCE_RATE        CASCADE CONSTRAINTS;
 drop table DEBUGTABLE         CASCADE CONSTRAINTS;
 drop table ARCHIVE            CASCADE CONSTRAINTS;
 
--- Edit date format
+-- Setup the environment
 ALTER SESSION SET NLS_DATE_FORMAT = 'DD-MM-YYYY';
+set serveroutput on;
 
 -- Create tables
 /***************************** THEATER **********************************/
@@ -29,15 +30,6 @@ CREATE TABLE THEATER_COMPANY
   PRIMARY KEY (theater_company_id),
   CONSTRAINT BUDGET_CSTR CHECK(budget >= 0)
 );
-
-CREATE OR REPLACE TRIGGER balance_update
-    AFTER UPDATE OF curr_date ON DEBUGTABLE
-    FOR EACH ROW
-    begin
-      IF DAY(curr_date) = 1 THEN
-        balance
-      END IF
-    end;
 
 /***************************** CREATIONS **********************************/
 
@@ -60,35 +52,41 @@ CREATE TABLE CREATIONS
 
 CREATE TABLE REPRESENTATION
 (
-  representation_id      NUMBER NOT NULL,
+  representation_id       NUMBER NOT NULL,
 
   date_representation     DATE NOT NULL,
   normal_reference_rate   FLOAT NOT NULL,
   reduced_reference_rate  FLOAT NOT NULL,
   money_made              FLOAT NOT NULL,
   tickets_sold            NUMBER,
+  city_representation     VARCHAR(64),
   
-  creation_id            NUMBER NOT NULL,
+  creation_id             NUMBER NOT NULL,
 
   PRIMARY KEY (representation_id),
   FOREIGN KEY (creation_id) REFERENCES CREATIONS(creation_id)
 );
 
 /*List cities where a company plays between two dates*/
-CREATE OR REPLACE FUNCTION citiesPlayedTwoDates(date_beginning DATE, date_ending DATE, tmp_name VARCHAR(64))
+CREATE OR REPLACE FUNCTION citiesPlayedTwoDates(date_beginning DATE, date_ending DATE, tmp_name VARCHAR)
 RETURN varchar
-IS city_return varchar;
+IS done_return varchar(64);
 
 begin
-  SELECT t.city INTO city_return
-  FROM THEATER_COMPANY t, CREATIONS c, REPRESENTATION r
-  WHERE t.name_company = tmp_name 
-    AND t.theater_company_id = c.theater_company_id
-    AND c.creation_id = r.creation_id
-    AND date_beggining <= c.date_representation
-    AND c.date_representation <= date_ending;
+  dbms_output.put_line('- Cities where '||tmp_name||' company played between '||TO_CHAR(date_beginning)||' and '||TO_CHAR(date_ending)||' -');
+  FOR CITYNAME IN (
+    SELECT r.city_representation
+    FROM THEATER_COMPANY t, CREATIONS c, REPRESENTATION r
+    WHERE r.creation_id = c.creation_id
+      AND t.theater_company_id = c.theater_company_id
+      AND t.name_company = tmp_name
+      AND date_beginning <= r.date_representation
+      AND r.date_representation <= date_ending
+  ) LOOP
+    dbms_output.put_line(CITYNAME.city_representation);
+  END LOOP;
     
-  RETURN city_return;
+  RETURN 'END';
 end;
 
 CREATE OR REPLACE TRIGGER no_duplicates_representation
@@ -268,6 +266,7 @@ CREATE TABLE BUYS
 
 /************************ FILL DATA ****************************/
 -- Theater company
+                                --(id, capacity, name, budget, city, balance)
 INSERT INTO THEATER_COMPANY VALUES(1, 300, 'Wakanim', 32000, 'Ineretu', 50798);
 INSERT INTO THEATER_COMPANY VALUES(2, 57, 'Caldwell', 20046, 'Sutufo', 79164);
 INSERT INTO THEATER_COMPANY VALUES(3, 78, 'Vasquez', 22422, 'Wuhilre', 39315);
@@ -277,6 +276,7 @@ INSERT INTO THEATER_COMPANY VALUES(6, 286, 'Miles', 19484, 'Hebauke', 52953);
 INSERT INTO THEATER_COMPANY VALUES(7, 494, 'Nelson', 19741, 'Ticosgeg', 94483);
 
 -- Creations
+                          --(id, cost, promo, FK theater)
 INSERT INTO CREATIONS VALUES(1, 1000, 0, 6);
 INSERT INTO CREATIONS VALUES(2, 2813, 0.1, 5);
 INSERT INTO CREATIONS VALUES(3, 2863, 0, 3);
@@ -286,12 +286,38 @@ INSERT INTO CREATIONS VALUES(6, 2543, 0, 3);
 INSERT INTO CREATIONS VALUES(7, 1074, 0.7, 5);
 
 -- Representation
-INSERT INTO REPRESENTATION VALUES(1, '01-01-2021', 15, 10, 0, 100, 1);
-INSERT INTO REPRESENTATION VALUES(2, '02-01-2021', 10, 8, 0, 27, 1);
-INSERT INTO REPRESENTATION VALUES(3, '04-01-2021', 20, 17, 0, 242, 6);
-INSERT INTO REPRESENTATION VALUES(4, '03-01-2021', 20, 6, 0, 348, 2);
-INSERT INTO REPRESENTATION VALUES(5, '06-01-2021', 25, 13, 0, 306, 3);
-INSERT INTO REPRESENTATION VALUES(6, '05-01-2021', 29, 11, 0, 205, 7);
-INSERT INTO REPRESENTATION VALUES(7, '04-01-2021', 21, 17, 0, 72, 3);
-INSERT INTO REPRESENTATION VALUES(8, '05-01-2021', 18, 10, 0, 147, 2);
-INSERT INTO REPRESENTATION VALUES(9, '01-01-2021', 6, 5, 0, 123, 2);
+                               --(id, date, normal, reduced, money, #tickets, city, FK creation)
+INSERT INTO REPRESENTATION VALUES( 1, '01-01-2021', 15, 10, 0, 100, 'Owocasok', 1);
+INSERT INTO REPRESENTATION VALUES( 2, '02-01-2021', 10,  8, 0,  27, 'Fufebokar', 1);
+INSERT INTO REPRESENTATION VALUES( 3, '04-01-2021', 20, 17, 0, 242, 'Fegifpez', 6);
+INSERT INTO REPRESENTATION VALUES( 4, '03-01-2021', 20,  6, 0, 348, 'Neibbi', 2);
+INSERT INTO REPRESENTATION VALUES( 5, '06-01-2021', 25, 13, 0, 306, 'Duwafen', 3);
+INSERT INTO REPRESENTATION VALUES( 6, '05-01-2021', 29, 11, 0, 205, 'Wiefeze', 7);
+INSERT INTO REPRESENTATION VALUES( 7, '04-01-2021', 21, 17, 0,  72, 'Miwdasi', 3);
+INSERT INTO REPRESENTATION VALUES( 8, '05-01-2021', 18, 10, 0, 147, 'Igogiac', 2);
+INSERT INTO REPRESENTATION VALUES( 9, '01-01-2021',  6,  5, 0, 123, 'Wazuri', 2);
+INSERT INTO REPRESENTATION VALUES(10, '01-01-2021', 15, 10, 0, 131, 'Avejubci', 7);
+INSERT INTO REPRESENTATION VALUES(11, '02-01-2021', 10,  8, 0, 168, 'Vezkafof', 5);
+INSERT INTO REPRESENTATION VALUES(12, '04-01-2021', 20, 17, 0, 187, 'Erufoszuw', 1);
+INSERT INTO REPRESENTATION VALUES(13, '03-01-2021', 20,  6, 0, 251, 'Isitiwac', 4);
+INSERT INTO REPRESENTATION VALUES(14, '06-01-2021', 25, 13, 0, 291, 'Zekkoeme', 1);
+INSERT INTO REPRESENTATION VALUES(15, '05-01-2021', 29, 11, 0, 283, 'Seguwe', 5);
+INSERT INTO REPRESENTATION VALUES(16, '04-01-2021', 21, 17, 0, 142, 'Leojini', 5);
+INSERT INTO REPRESENTATION VALUES(17, '05-01-2021', 18, 10, 0, 299, 'Tedetjaf', 6);
+INSERT INTO REPRESENTATION VALUES(18, '01-01-2021',  6,  5, 0, 147, 'Fulafobet', 5);
+INSERT INTO REPRESENTATION VALUES(19, '01-01-2021', 15, 10, 0, 129, 'Ilfopi', 5);
+INSERT INTO REPRESENTATION VALUES(20, '02-01-2021', 10,  8, 0, 112, 'Ledirbot', 7);
+INSERT INTO REPRESENTATION VALUES(21, '04-01-2021', 20, 17, 0, 144, 'Banhatep', 6);
+INSERT INTO REPRESENTATION VALUES(22, '03-01-2021', 20,  6, 0, 133, 'Uftiupo', 6);
+INSERT INTO REPRESENTATION VALUES(23, '06-01-2021', 25, 13, 0, 198, 'Fisuami', 4);
+INSERT INTO REPRESENTATION VALUES(24, '05-01-2021', 29, 11, 0, 121, 'Topihun', 6);
+INSERT INTO REPRESENTATION VALUES(25, '04-01-2021', 21, 17, 0, 112, 'Semobe', 4);
+INSERT INTO REPRESENTATION VALUES(26, '05-01-2021', 18, 10, 0, 172, 'Fufosfit', 3);
+INSERT INTO REPRESENTATION VALUES(27, '01-01-2021',  6,  5, 0, 126, 'Potrebi', 6);
+
+
+/******************************** SQL QUERIES ************************************/
+-- List the cities where a company played during a time period
+begin
+  dbms_output.put_line(citiesplayedtwodates('01-01-2021', '03-01-2021', 'Vasquez'));
+end;
