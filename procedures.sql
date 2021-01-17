@@ -23,7 +23,7 @@ begin
 end;
     
 --No two representation at same place from same company
-create or replace trigger not_two_same_representation_place
+create or replace trigger  
 before insert or update on representation
 
 for each row
@@ -72,11 +72,26 @@ for each row
 
 
 --Archive transaction when there is a movement
-create or replace trigger archive_transaction
-after 
+create procedure archive_transaction
+is
+curr_date DATE = getcurrdate();
 
+declare
+@ReportStartDate DATE= month(curr_date, -1), --it run each end of month
+@ReportEndDate DATE= month(curr_date)
 
---Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)S
+if @ReportEndDate=curr_date
+Begin
+    for curr_grant in (select * from grant) loop
+        if curr_grant.date_start < curr_date AND curr_grant.date_end > curr_date then
+            insert into archive values ((SELECT max(trans_id) FROM archive)+1,curr_date,curr_grant.amount,"automatic transfer from "+ entity)  ;
+
+        endif;
+    endloop;
+end;
+   
+
+--Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)
 create procedure compute_reduce_rate
 is
 reduction_p NUMBER;

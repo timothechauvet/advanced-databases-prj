@@ -1,10 +1,10 @@
 # To-do list
 ## PROCEDURES
-- [ ] No two representation at same time from same company
-- [ ] No two representation at same place from same company
+- [X] No two representation at same time from same company
+- [X] No two representation at same place from same company
 - [ ] Balance is updated daily/with any change
-- [ ] Archive transaction when there is a movement
-- [ ] Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)
+- [X] Archive transaction when there is a movement
+- [X] Compute reduce_rate if 1 of 4 condition is met (job, age, filling, date)
 
 ## FUNCTIONS
 - [x] Advance time
