@@ -22,8 +22,8 @@
 - [X] Déterminer si le coût sera amorti avec les potentielles recettes
 - [X] Effective cost : Costs/Ticketing
 - [X] Déterminer les companies qui jouent jamais dans des théâtres
-- [ ] Quelles companies font systématiquement leur first show dehors/en intérieur
-- [ ] Calculer le prix moyen des tickets vendus par companie
+- [X] Quelles companies font systématiquement leur first show dehors/en intérieur
+- [X] Calculer le prix moyen des tickets vendus par companie
 - [ ] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # représentations
 - [ ] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # potential viewers
 - [ ] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # seats sold

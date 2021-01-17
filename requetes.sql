@@ -23,8 +23,8 @@ begin
     if earnin * (select count(*) from representation where representation_id = rep.representation_id 
     group by representation_id;) < 0 then
         return  "no amortization";
-    else then
-        return "amortization"
+    else 
+        return "amortization";
     endif;
 end;
 
@@ -40,13 +40,44 @@ begin
             * (select count(*) from representation where representation_id = rep 
                 and tickets.ticket_id = representation.ticket_id;))
 end;
+
 -- Déterminer les companies qui jouent jamais dans des théâtres
 select theater_company_id from theater_company --select all row from theater_company
 left join representation on representation.theater_company_id = theater_company.theater_company_id --find row in representation with same company id, otherwise have null
 where representation.theater_company_id is NULL; --pick only result where id in representation is  null
 
 -- Quelles companies font systématiquement leur first show dehors/en intérieur
+Create procedure first_show
+begin 
+    dbms_output.put_line ("theatre id | in their theatre or outside")
+    for theatre in (select * from theater_company) loop
+        if theatre in (select theater_company_id from theater_company
+        left join representation on representation.theater_company_id = theater_company.theater_company_id)
+            dbms_output.put_line (theatre.theater_company_id '|  inside' );
+        
+        else
+            dbms_output.put_line (theatre.theater_company_id '|  outside' );
+        endif;
+    endloop;
+end;
+
 -- Calculer le prix moyen des tickets vendus par companie
+Create procedure average_ticket_price
+is
+average NUMBER;
+
+begin 
+    dbms_output.put_line ("theatre id | average ticket price")
+    for  theatre in (select * from theater_company) loop
+        average := (select avg(price) from tickets,representation  
+                    where theatre.theater_company_id = representation.representation_id
+                    and representation.ticket_id = tickets.ticket_id;)
+
+        dbms_output.put_line (theatre '|' average);
+    endloop;
+end;
+
+
 -- Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # représentations
 -- Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # potential viewers
 -- Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # seats sold
