@@ -14,8 +14,8 @@ IS
         where representation_id = rep and representation.theater_company_id =theater_company.theater_company_id;
         
         select price into tick_price
-        from tickets, representation 
-        where representation_id = rep and tickets.ticket_id = representation.ticket_id;
+        from tickets, representation ,reduce_rate
+        where representation_id = rep and tickets.representation_id = reduce_rate.representation_id;;
         
         return (hall_cap*tick_price);
     end;
@@ -57,11 +57,11 @@ begin
     where rep.representation_id = representation.representation_id and creations.creation_id = representation.creation_id;
     
     select price INTO tick_price
-    from tickets, representation 
-    where representation_id = rep and tickets.ticket_id = representation.ticket_id;
+    from tickets, representation ,reduce_rate
+    where representation_id = rep and tickets.representation_id = reduce_rate.representation_id;
     
     select count(*) into tick_nbr
-    from representation,tickets where representation_id = rep and tickets.ticket_id = representation.ticket_id;
+    from representation,tickets where representation_id = rep and tickets.representation_id = reduce_rate.representation_id;;
                 
     Return cre_cost/(tick_price * rep.tickets_sold);
 end;
@@ -95,7 +95,7 @@ begin
     for  theatre in (select * from theater_company) loop
         select avg(price) into average
         from tickets,representation  
-        where theatre.theater_company_id = representation.representation_id and representation.ticket_id = tickets.ticket_id;
+        where theatre.theater_company_id = representation.theater_company_id and tickets.representation_id = reduce_rate.representation_id;;
 
         dbms_output.put_line(theatre '|' average);
     end loop;
