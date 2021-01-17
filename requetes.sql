@@ -78,7 +78,48 @@ begin
 end;
 
 
--- Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # représentations
--- Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # potential viewers
--- Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # seats sold
+-- Quels sont les show les plus populaires (en fonction d'une période de temps) 
+--en fonction de # représentations
+create function most_popular_representation(startDate DATE, endDate DATE)
+RETURN NUMBER
 
+begin
+    SELECT representation_id most_popular from representation
+    where representation.date > startDate AND representation.date < endDate
+    group by representation_id order by count(representation_id) DESC
+    limit 1;
+
+    return most_popular;
+end;
+
+-- Quels sont les show les plus populaires (en fonction d'une période de temps) 
+--en fonction de # potential viewers
+create function most_popular_viewer(startDate DATE, endDate DATE)
+RETURN NUMBER
+
+begin
+    SELECT representation_id most_popular from representation, theater_company
+    where representation.date > startDate AND representation.date < endDate
+    AND representation.theater_company_id = theater_company.theater_company_id
+    Group by representation_id order by sum(hall_capacity) DESC
+    limit 1;
+    
+    return most_popular;
+end;
+
+
+-- Quels sont les show les plus populaires (en fonction d'une période de temps) 
+--en fonction de # seats sold
+
+create function most_popular_ticket(startDate DATE, endDate DATE)
+RETURN NUMBER
+
+begin
+    SELECT representation_id most_popular from representation,tickets
+    where representation.date > startDate AND representation.date < endDate 
+    AND ticket.representation_id = representation.representation_id
+    group by representation_id order by count(tickets.representation_id) DESC
+    limit 1;
+
+    return most_popular;
+end;

@@ -24,6 +24,6 @@
 - [X] Déterminer les companies qui jouent jamais dans des théâtres
 - [X] Quelles companies font systématiquement leur first show dehors/en intérieur
 - [X] Calculer le prix moyen des tickets vendus par companie
-- [ ] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # représentations
-- [ ] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # potential viewers
-- [ ] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # seats sold
+- [X] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # représentations
+- [X] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # potential viewers
+- [X] Quels sont les show les plus populaires (en fonction d'une période de temps) en fonction de # seats sold
