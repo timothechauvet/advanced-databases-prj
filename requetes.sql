@@ -51,7 +51,6 @@ RETURN NUMBER
 IS
     cre_cost NUMBER;
     tick_price NUMBER;
-    tick_nbr NUMBER;
 begin 
     select creation_cost INTO cre_cost
     from creations, representation 
@@ -64,7 +63,7 @@ begin
     select count(*) into tick_nbr
     from representation,tickets where representation_id = rep and tickets.ticket_id = representation.ticket_id;
                 
-    Return cre_cost/(tick_price * tick_nbr);
+    Return cre_cost/(tick_price * rep.tickets_sold);
 end;
 
 -- Déterminer les companies qui jouent jamais dans des théâtres
